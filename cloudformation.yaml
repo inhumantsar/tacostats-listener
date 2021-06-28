@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources: 
+  Pinger:
+    Type: AWS::SQS::Queue
+    Properties: 
+      MessageRetentionPeriod: 43200
+      QueueName: tacostats-pinger
+      # VisibilityTimeout: 30
+  #  Outputs:
+  #     QueueName:
+  #        Value: !GetAtt Pinger.QueueName
+  #     QueueURL:
+  #        Value: 
+  #          Ref: Pinger
+  #     QueueARN:
+  #        Value: !GetAtt Pinger.Arn
+
+  ExecRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: tacostats-listener-exec
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              Service: 
+                - ecs-tasks.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Path: /
+
+  TaskRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: tacostats-listener-task
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              Service: 
+                - ecs-tasks.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Path: /
+  TaskRolePolicies: 
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: tacostats
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: 'arn:aws:secretsmanager:us-west-2:676444348764:secret:tacostats-*'
+          - Effect: Allow
+            Action:
+              - sqs:Get*
+              - sqs:SendMessage
+            Resource: !GetAtt Pinger.Arn
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+            Resource: '*'
+      Roles: 
+        - Ref: TaskRole
+
+  ECSTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      RequiresCompatibilities:
+        - "FARGATE"
+      ContainerDefinitions: 
+        - Environment: 
+            - Name: SQS_URL
+              Value: !Ref Pinger
+          # HealthCheck: 
+          #   HealthCheck
+          Image: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats-listener:v0.0.0
+          LogConfiguration: 
+            LogDriver: awslogs
+            Options:
+              awslogs-group: tacostats-listener
+              awslogs-region: us-west-2
+              awslogs-stream-prefix: ffs
+          Name: tacostats-listener
+          # ReadonlyRootFilesystem: True
+          # StartTimeout: Integer
+          # StopTimeout: Integer
+
+      NetworkMode: awsvpc
+      Cpu: 256
+      ExecutionRoleArn: !GetAtt ExecRole.Arn
+      Memory: 0.5GB
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      # Volumes: 
+      #   - Volume
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      CapacityProviders: 
+        - FARGATE_SPOT
+      ClusterName: tacostats-listener
+      ClusterSettings: 
+        - Name: containerInsights
+          Value: enabled
+      Tags: 
+        - Key: project
+          Value: tacostats
+
+      
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties: 
+      Cluster: !GetAtt ECSCluster.Arn
+      LaunchType: FARGATE
+      ServiceName: tacostats-listener
+      PropagateTags: SERVICE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: [subnet-0e1001cc4db7b4daf]
+      Tags: 
+        - Key: project
+          Value: tacostats
+      TaskDefinition: !Ref ECSTask
