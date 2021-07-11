@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv(verbose=True)
 
-VERSION = 'v0.0.0'
+VERSION = 'v0.1.19'
 
 # don't write to sqs
 DRY_RUN = bool(strtobool(os.getenv("DRY_RUN", "False")))
@@ -16,6 +16,14 @@ print("DRY_RUN set to", DRY_RUN)
 
 SQS_URL = os.getenv("SQS_URL")
 print("SQS_URL set to", SQS_URL)
+
+LOCKFILE_BUCKET = os.getenv("LOCKFILE_BUCKET")
+print("LOCKFILE_BUCKET set to", LOCKFILE_BUCKET)
+
+_WHITELIST_USERS = "inhumantsar,tacostats"
+WHITELIST_ENABLED = bool(strtobool(os.getenv("WHITELIST_ENABLED", "True")))
+WHITELIST = os.getenv("WHITELIST", _WHITELIST_USERS).split(',')
+print("WHITELIST set to ", WHITELIST)
 
 DEFAULT_HISTORY_DAYS = int(os.getenv("DEFAULT_HISTORY_DAYS", 7))
 
@@ -37,5 +45,5 @@ EXCLUDED_AUTHORS = [
     "AutoModerator",
     "EmojifierBot",
     "groupbot",
-    "tacostats",
+    "ShiversifyBot"
 ]
