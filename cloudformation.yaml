@@ -52,7 +52,7 @@ Resources:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: 'arn:aws:secretsmanager:us-west-2:676444348764:secret:tacostats-*'
+            Resource: 'arn:aws:secretsmanager:us-east-2:390721581096:secret:tacostats-*'
           - Effect: Allow
             Action:
               - sqs:Get*
@@ -64,10 +64,10 @@ Resources:
             Resource: '*'
           - Effect: Allow
             Action: [s3:ListBucket]
-            Resource: [arn:aws:s3:::tacostats-listener-lockfiles]
+            Resource: [arn:aws:s3:::inhumantsar-tacostats-listener-lockfiles]
           - Effect: Allow
             Action: [s3:*Object*]
-            Resource: ["arn:aws:s3:::tacostats-listener-lockfiles/*"]
+            Resource: ["arn:aws:s3:::inhumantsar-tacostats-listener-lockfiles/*"]
       Roles: 
         - Ref: TaskRole
 
@@ -87,12 +87,12 @@ Resources:
               Value: "False"
           # HealthCheck: 
           #   HealthCheck
-          Image: 676444348764.dkr.ecr.us-west-2.amazonaws.com/tacostats-listener:v0.1.19
+          Image: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats-listener:v0.1.19
           LogConfiguration: 
             LogDriver: awslogs
             Options:
               awslogs-group: tacostats-listener
-              awslogs-region: us-west-2
+              awslogs-region: us-east-2
               awslogs-stream-prefix: ffs
           Name: tacostats-listener
           # ReadonlyRootFilesystem: True
