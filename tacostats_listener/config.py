@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv(verbose=True)
 
-VERSION = 'v0.1.19'
+VERSION = "v0.2.2"
 
 # don't write to sqs
 DRY_RUN = bool(strtobool(os.getenv("DRY_RUN", "False")))
@@ -22,7 +22,7 @@ print("LOCKFILE_BUCKET set to", LOCKFILE_BUCKET)
 
 _WHITELIST_USERS = "inhumantsar,tacostats"
 WHITELIST_ENABLED = bool(strtobool(os.getenv("WHITELIST_ENABLED", "True")))
-WHITELIST = os.getenv("WHITELIST", _WHITELIST_USERS).split(',')
+WHITELIST = os.getenv("WHITELIST", _WHITELIST_USERS).split(",")
 print("WHITELIST set to ", WHITELIST)
 
 DEFAULT_HISTORY_DAYS = int(os.getenv("DEFAULT_HISTORY_DAYS", 7))
@@ -32,18 +32,21 @@ get_secret = lambda x: secrets.get_secret_value(SecretId=x)["SecretString"]
 
 REDDIT = {
     "client_id": os.getenv("REDDIT_ID", get_secret("tacostats-reddit-client-id")),
-    "client_secret": os.getenv("REDDIT_SECRET", get_secret("tacostats-reddit-secret")),
+    "client_secret": os.getenv("REDDIT_SECRET", get_secret("tacostats-reddit-client-secret")),
     "user_agent": os.getenv("REDDIT_UA"),
     "username": os.getenv("REDDIT_USER"),
     "password": os.getenv("REDDIT_PASS", get_secret("tacostats-reddit-password")),
 }
 
-TRIGGERS = ['!stats', '!monthlystats', '!weeklystats', '!dailystats', '!mystats', '!mymonthlystats', '!myweeklystats', '!mydailystats']
-
-EXCLUDED_AUTHORS = [
-    "jobautomator",
-    "AutoModerator",
-    "EmojifierBot",
-    "groupbot",
-    "ShiversifyBot"
+TRIGGERS = [
+    "!stats",
+    "!monthlystats",
+    "!weeklystats",
+    "!dailystats",
+    "!mystats",
+    "!mymonthlystats",
+    "!myweeklystats",
+    "!mydailystats",
 ]
+
+EXCLUDED_AUTHORS = ["jobautomator", "AutoModerator", "EmojifierBot", "groupbot", "ShiversifyBot"]

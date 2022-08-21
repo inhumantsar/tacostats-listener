@@ -1,58 +1,67 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Resources: 
+Resources:
   Pinger:
     Type: AWS::SQS::Queue
-    Properties: 
+    Properties:
       MessageRetentionPeriod: 43200
       QueueName: tacostats-pinger
       # VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterQueueArn: !GetAtt PingerDlq.Arn
+        maxReceiveCount: 3
+
+  PingerDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tacostats-pinger-dlq
 
   LockfileBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: tacostats-listener-lockfiles
+      BucketName: tacostats-listener-lockfiles-use2
 
-  ExecRole: 
+  ExecRole:
     Type: AWS::IAM::Role
-    Properties: 
+    Properties:
       RoleName: tacostats-listener-exec
-      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
-      AssumeRolePolicyDocument: 
+      ManagedPolicyArns:
+        [arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+      AssumeRolePolicyDocument:
         Version: "2012-10-17"
-        Statement: 
+        Statement:
           - Effect: Allow
-            Principal: 
-              Service: 
+            Principal:
+              Service:
                 - ecs-tasks.amazonaws.com
-            Action: 
+            Action:
               - sts:AssumeRole
       Path: /
 
-  TaskRole: 
+  TaskRole:
     Type: AWS::IAM::Role
-    Properties: 
+    Properties:
       RoleName: tacostats-listener-task
-      AssumeRolePolicyDocument: 
+      AssumeRolePolicyDocument:
         Version: "2012-10-17"
-        Statement: 
+        Statement:
           - Effect: Allow
-            Principal: 
-              Service: 
+            Principal:
+              Service:
                 - ecs-tasks.amazonaws.com
-            Action: 
+            Action:
               - sts:AssumeRole
       Path: /
-  TaskRolePolicies: 
+  TaskRolePolicies:
     Type: AWS::IAM::Policy
-    Properties: 
+    Properties:
       PolicyName: tacostats
-      PolicyDocument: 
+      PolicyDocument:
         Version: "2012-10-17"
-        Statement: 
+        Statement:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: 'arn:aws:secretsmanager:us-east-2:390721581096:secret:tacostats-*'
+            Resource: "arn:aws:secretsmanager:us-east-2:390721581096:secret:tacostats-*"
           - Effect: Allow
             Action:
               - sqs:Get*
@@ -61,34 +70,34 @@ Resources:
           - Effect: Allow
             Action:
               - logs:CreateLogGroup
-            Resource: '*'
+            Resource: "*"
           - Effect: Allow
             Action: [s3:ListBucket]
-            Resource: [arn:aws:s3:::inhumantsar-tacostats-listener-lockfiles]
+            Resource: ["arn:aws:s3:::tacostats-listener-lockfiles-use2"]
           - Effect: Allow
             Action: [s3:*Object*]
-            Resource: ["arn:aws:s3:::inhumantsar-tacostats-listener-lockfiles/*"]
-      Roles: 
+            Resource: ["arn:aws:s3:::tacostats-listener-lockfiles-use2/*"]
+      Roles:
         - Ref: TaskRole
 
   ECSTask:
     Type: AWS::ECS::TaskDefinition
-    Properties: 
+    Properties:
       Family: tacostats-listener
       RequiresCompatibilities:
         - "FARGATE"
-      ContainerDefinitions: 
-        - Environment: 
+      ContainerDefinitions:
+        - Environment:
             - Name: SQS_URL
               Value: !Ref Pinger
             - Name: PYTHONUNBUFFERED
               Value: 1
             - Name: WHITELIST_ENABLED
               Value: "False"
-          # HealthCheck: 
+          # HealthCheck:
           #   HealthCheck
-          Image: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats-listener:v0.1.19
-          LogConfiguration: 
+          Image: 390721581096.dkr.ecr.us-east-2.amazonaws.com/tacostats-listener:v0.2.2
+          LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: tacostats-listener
@@ -104,38 +113,50 @@ Resources:
       ExecutionRoleArn: !GetAtt ExecRole.Arn
       Memory: 0.5GB
       TaskRoleArn: !GetAtt TaskRole.Arn
-      # Volumes: 
+      # Volumes:
       #   - Volume
 
   ECSCluster:
     Type: AWS::ECS::Cluster
-    Properties: 
-      CapacityProviders: 
+    Properties:
+      CapacityProviders:
         - FARGATE_SPOT
       ClusterName: tacostats-listener
-      ClusterSettings: 
+      ClusterSettings:
         - Name: containerInsights
           Value: enabled
-      Tags: 
+      Tags:
         - Key: project
           Value: tacostats
 
-      
   ECSService:
     Type: AWS::ECS::Service
-    Properties: 
+    Properties:
       Cluster: !GetAtt ECSCluster.Arn
-      LaunchType: FARGATE
       ServiceName: tacostats-listener
       PropagateTags: SERVICE
+      CapacityProviderStrategy:
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 1
       DesiredCount: 1
       DeploymentConfiguration:
         MinimumHealthyPercent: 0
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
-          Subnets: [subnet-0e1001cc4db7b4daf]
-      Tags: 
+          Subnets:
+            - subnet-b5ef7ede
+            - subnet-9fe52ae2
+            - subnet-00a89f4c
+      Tags:
         - Key: project
           Value: tacostats
       TaskDefinition: !Ref ECSTask
+
+  ECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: tacostats-listener
+      Tags:
+        - Key: project
+          Value: tacostats
